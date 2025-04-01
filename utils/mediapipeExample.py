@@ -1,39 +1,50 @@
 import cv2
 import mediapipe as mp
 
-# Initialize MediaPipe drawing
+
+# Initialize MediaPipe Solutions
+mp_pose = mp.solutions.pose
+mp_hands = mp.solutions.hands
 mp_drawing = mp.solutions.drawing_utils
-mp_holistic = mp.solutions.holistic
+
+# Initialize Models
+pose = mp_pose.Pose(min_detection_confidence=0.7, min_tracking_confidence=0.5)
+hands = mp_hands.Hands(min_detection_confidence=0.7, min_tracking_confidence=0.5)
+
 # Open the webcam
 cap = cv2.VideoCapture(0)
 
-with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
-    while cap.isOpened():
-        ret, frame = cap.read()
-        frame = cv2.flip(frame, 1)
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+while cap.isOpened():
+    ret, frame = cap.read()
+    if not ret:
+        break
 
-        results = holistic.process(rgb_frame)
+    # Flip the frame horizontally for a later selfie-view display
+    frame = cv2.flip(frame, 1)
 
-        #mp_drawing.draw_landmarks(frame, results.face_landmarks, mp_holistic.FACEMESH_TESSELATION)
-            
-        # Right hand
-        mp_drawing.draw_landmarks(frame, results.right_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
+    # Convert the BGR image to RGB
+    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-        # Left Hand
-        mp_drawing.draw_landmarks(frame, results.left_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
+    # Process the frame for pose, hands, and face mesh detection
+    pose_result = pose.process(rgb_frame)
+    hands_result = hands.process(rgb_frame)
 
-        # Pose Detections
-        mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp_holistic.POSE_CONNECTIONS)
-                            
-        cv2.imshow('Hand Detector', frame)
+    # Draw pose landmarks if detected
+    if pose_result.pose_landmarks:
+        mp_drawing.draw_landmarks(frame, pose_result.pose_landmarks, mp_pose.POSE_CONNECTIONS)
 
-            # Check for exit condition after showing the frame
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+    # Draw hand landmarks if detected
+    if hands_result.multi_hand_landmarks:
+        for hand_landmarks in hands_result.multi_hand_landmarks:
+            mp_drawing.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
+
+    # Display the resulting frame
+    cv2.imshow('Pose, Hands & Face Mesh Detector', frame)
+
+    # Check for exit condition
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
 
 # Release the webcam and close the window
 cap.release()
 cv2.destroyAllWindows()
-
-
